@@ -4,11 +4,8 @@ use sea_orm::{
     ActiveModelTrait, ActiveValue, ColumnTrait, DbErr, EntityTrait, QueryFilter, TransactionTrait,
 };
 use std::collections::HashMap;
-use urlencoding::encode;
 
-use crate::routes::lib::create_signature;
-
-use super::lib::{get_fail_redirect, get_provider_data, RedirectWithCookie};
+use super::lib::{get_fail_redirect, get_provider_data, FailReason, RedirectWithCookie};
 use backend::{
     entities::{
         prelude::{SocialProfile, User},
@@ -18,13 +15,15 @@ use backend::{
     establish_db_connection, get_env_var,
 };
 
+use crate::routes::lib::create_signature;
+
 #[get("/<provider_type>?<code>")]
 pub async fn success_handler(
     provider_type: &str,
     code: &str,
 ) -> Result<RedirectWithCookie, Redirect> {
     if provider_type != "discord" && provider_type != "google" {
-        return Err(get_fail_redirect());
+        return Err(get_fail_redirect(&FailReason::UnknownProvider));
     }
 
     let provider_data = get_provider_data(provider_type);
@@ -54,18 +53,22 @@ pub async fn success_handler(
         .await;
     let profile_body = match provider_data.provider {
         SocialProviderType::Discord => {
-            let body = handle_res_body::<DiscordProfileResponse>(profile_res)
-                .await
-                .unwrap();
+            let body_res = handle_res_body::<DiscordProfileResponse>(profile_res).await;
+            if let Err(err) = body_res {
+                return Err(err);
+            }
+            let body = body_res.unwrap();
             UserSocialProfileData {
                 provider_id: body.id,
                 provider_username: body.username,
             }
         }
         SocialProviderType::Google => {
-            let body = handle_res_body::<GoogleProfileResponse>(profile_res)
-                .await
-                .unwrap();
+            let body_res = handle_res_body::<GoogleProfileResponse>(profile_res).await;
+            if let Err(err) = body_res {
+                return Err(err);
+            }
+            let body = body_res.unwrap();
             UserSocialProfileData {
                 provider_id: body.sub,
                 provider_username: String::from(""),
@@ -73,35 +76,43 @@ pub async fn success_handler(
         }
     };
 
-    let db = unwrap_result_or_redirect(establish_db_connection().await).unwrap();
-    let existing_social_profile = unwrap_result_or_redirect(
-        SocialProfile::find()
-            .filter(social_profile::Column::ProviderId.eq(profile_body.provider_id.clone()))
-            .one(&db)
-            .await,
-    )
-    .unwrap();
+    let db_res = establish_db_connection().await;
+    if let Err(_) = db_res {
+        return Err(get_fail_redirect(&FailReason::Internal));
+    }
+    let db = db_res.unwrap();
 
-    match existing_social_profile {
+    let existing_social_profile_res = SocialProfile::find()
+        .filter(social_profile::Column::ProviderId.eq(profile_body.provider_id.clone()))
+        .one(&db)
+        .await;
+    if let Err(_) = existing_social_profile_res {
+        return Err(get_fail_redirect(&FailReason::Internal));
+    }
+
+    match existing_social_profile_res.unwrap() {
         Some(sp) => {
-            let existing_user =
-                unwrap_result_or_redirect(User::find_by_id(sp.user_id).one(&db).await).unwrap();
+            let existing_user_res = User::find_by_id(sp.user_id).one(&db).await;
+            match existing_user_res {
+                Ok(existing_user) => {
+                    if existing_user == None {
+                        return Err(get_fail_redirect(&FailReason::Internal));
+                    }
 
-            if existing_user == None {
-                return Err(get_fail_redirect());
+                    let existing_user_id = existing_user.unwrap().id.to_string();
+                    let signature = create_signature(&existing_user_id);
+
+                    Ok(RedirectWithCookie::new(format!(
+                        "id={}.{}; HttpOnly=true; Max-Age=86400; Path=/; SameSite=Strict; Secure=true;",
+                        existing_user_id, signature
+                    )))
+                }
+                Err(_) => Err(get_fail_redirect(&FailReason::Internal)),
             }
-
-            let existing_user_id = existing_user.unwrap().id.to_string();
-            let signature = create_signature(&existing_user_id);
-
-            Ok(RedirectWithCookie::new(format!(
-                "id={}.{}; HttpOnly=true; Max-Age=86400; Path=/; SameSite=Strict; Secure=true;",
-                existing_user_id, signature
-            )))
         }
         None => {
-            let user_id = unwrap_result_or_redirect(
-                db.transaction::<_, String, DbErr>(|tx| {
+            let user_id_res = db
+                .transaction::<_, String, DbErr>(|tx| {
                     Box::pin(async move {
                         let saved_user = user::ActiveModel {
                             default_social_profile: ActiveValue::Set(
@@ -128,9 +139,13 @@ pub async fn success_handler(
                         Ok(saved_user_id.to_string())
                     })
                 })
-                .await,
-            )
-            .unwrap();
+                .await;
+
+            if let Err(_) = user_id_res {
+                return Err(get_fail_redirect(&FailReason::Internal));
+            }
+
+            let user_id = user_id_res.unwrap();
             let signature = create_signature(&user_id);
 
             Ok(RedirectWithCookie::new(format!(
@@ -144,7 +159,7 @@ pub async fn success_handler(
 #[get("/<_provider_type>?<_error>&<_error_description>", rank = 2)]
 pub fn error_handler(_provider_type: &str, _error: &str, _error_description: &str) -> Redirect {
     let client_url = get_env_var("CLIENT_URL");
-    Redirect::to(client_url)
+    Redirect::permanent(client_url)
 }
 
 #[derive(Deserialize)]
@@ -180,21 +195,9 @@ where
             let parsed = r.json::<T>().await;
             match parsed {
                 Ok(p) => Ok(p),
-                Err(_) => Err(get_fail_redirect()),
+                Err(_) => Err(get_fail_redirect(&FailReason::Internal)),
             }
         }
-        Err(_) => Err(get_fail_redirect()),
-    }
-}
-
-fn unwrap_result_or_redirect<T, E>(res: Result<T, E>) -> Result<T, Redirect> {
-    let client_fail_url = get_env_var("CLIENT_SIGNIN_FAIL_URL");
-    match res {
-        Ok(success) => Ok(success),
-        Err(_) => Err(Redirect::to(format!(
-            "{}?error_msg={}",
-            client_fail_url,
-            encode("Server error")
-        ))),
+        Err(_) => Err(get_fail_redirect(&FailReason::Internal)),
     }
 }

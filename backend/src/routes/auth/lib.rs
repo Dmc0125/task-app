@@ -1,16 +1,25 @@
-use rocket::{http::Status, response, Request, Response};
+use rocket::{http::Status, response::{self, Redirect}, Request, Response};
 use urlencoding::encode;
 
 use backend::{entities::sea_orm_active_enums::SocialProviderType, get_env_var};
 
-pub fn get_fail_redirect() -> response::Redirect {
+pub fn get_fail_redirect(fail_reason: &FailReason) -> Redirect {
     let client_fail_url = get_env_var("CLIENT_SIGNIN_FAIL_URL");
-    let redirect_url = format!(
-        "{}?error_msg={}",
-        client_fail_url,
-        encode("Unknown provider")
-    );
-    response::Redirect::permanent(redirect_url)
+    Redirect::permanent(format!("{}?error_msg={}", client_fail_url, encode(fail_reason.value())))
+}
+
+pub enum FailReason {
+    Internal,
+    UnknownProvider,
+}
+
+impl FailReason {
+    pub fn value(self: &Self) -> &str {
+        match self {
+            FailReason::Internal => "Internal server error",
+            FailReason::UnknownProvider => "Unknown provider",
+        }
+    }
 }
 
 pub struct RedirectWithCookie {
