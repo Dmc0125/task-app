@@ -9,5 +9,9 @@ members = [".", "migration"]
 
 [dependencies]
 dotenvy = "0.15.6"
+hex = "0.4.3"
+hmac-sha256 = "1.1.5"
+reqwest = { version = "0.11.13", features = ["json"] }
 rocket = { version = "0.5.0-rc.2", features = ["json"] }
-sea-orm = { version = "0.10.3", features = ["macros", "sqlx-postgres", "runtime-tokio-native-tls"] }
+sea-orm = { version = "0.10.3", features = ["macros", "sqlx-postgres", "runtime-tokio-native-tls", "postgres-array"] }
+urlencoding = "2.1.2"

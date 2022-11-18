@@ -1,18 +1,14 @@
-use dotenvy::dotenv;
-use sea_orm::{Database, DatabaseConnection};
+use sea_orm::{Database, DatabaseConnection, DbErr};
 use std::env;
 
-pub async fn establish_db_connection() -> DatabaseConnection {
-    dotenv().ok();
+pub mod entities;
 
-    let database_url = env::var("DATABASE_URL").expect(&env_err_msg("Could not find DATABASE_URL"));
-    let db = Database::connect(database_url)
-        .await
-        .unwrap_or_else(|_| panic!("[DATABASE]: Could not connect to database"));
-
-    db
+pub async fn establish_db_connection() -> Result<DatabaseConnection, DbErr> {
+    let database_url = get_env_var("DATABASE_URL");
+    Database::connect(database_url).await
 }
 
-pub fn env_err_msg(msg: &str) -> String {
-    format!("[ENV]: {}", msg)
+pub fn get_env_var<S: Into<String>>(key: S) -> String {
+    let k: String = key.into();
+    env::var(&k).expect(&format!("[ENV]: Could not find {}", &k))
 }

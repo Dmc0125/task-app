@@ -1,5 +1,7 @@
-#[macro_use] extern crate rocket;
+#[macro_use]
+extern crate rocket;
 
+use dotenvy::dotenv;
 use rocket::serde::json::Json;
 use routes::lib::SuccessResponse;
 
@@ -12,7 +14,23 @@ fn index() -> Json<SuccessResponse<&'static str>> {
 
 #[launch]
 fn rocket() -> _ {
+    dotenv().ok();
+
     rocket::build()
         .mount("/", routes![index])
-        .mount("/api/v1/auth/", routes![routes::auth::sign_in::handler])
+        .mount(
+            "/api/v1/auth/signin",
+            routes![routes::auth::sign_in::handler],
+        )
+        .mount(
+            "/api/v1/auth/callback",
+            routes![
+                routes::auth::callback::success_handler,
+                routes::auth::callback::error_handler
+            ],
+        )
+        .mount(
+            "/api/v1/auth/signout",
+            routes![routes::auth::sign_out::handler],
+        )
 }
