@@ -33,4 +33,10 @@ fn rocket() -> _ {
             "/api/v1/auth/signout",
             routes![routes::auth::sign_out::handler],
         )
+        .mount(
+            "/api/v1",
+            routes![
+                routes::workspace::insert::handler,
+            ],
+        )
 }

@@ -8,7 +8,7 @@ pub struct Model {
     #[sea_orm(primary_key)]
     pub id: i32,
     pub user_id: i32,
-    pub title: Option<String>,
+    pub title: String,
     pub description: Option<String>,
 }
 
@@ -22,10 +22,10 @@ pub enum Relation {
         on_delete = "Cascade"
     )]
     User,
-    #[sea_orm(has_many = "super::task_group::Entity")]
-    TaskGroup,
     #[sea_orm(has_many = "super::label::Entity")]
     Label,
+    #[sea_orm(has_many = "super::task_group::Entity")]
+    TaskGroup,
 }
 
 impl Related<super::user::Entity> for Entity {
@@ -34,15 +34,15 @@ impl Related<super::user::Entity> for Entity {
     }
 }
 
-impl Related<super::task_group::Entity> for Entity {
-    fn to() -> RelationDef {
-        Relation::TaskGroup.def()
-    }
-}
-
 impl Related<super::label::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::Label.def()
+    }
+}
+
+impl Related<super::task_group::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::TaskGroup.def()
     }
 }
 

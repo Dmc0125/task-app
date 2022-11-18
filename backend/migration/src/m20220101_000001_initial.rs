@@ -111,7 +111,7 @@ impl MigrationTrait for Migration {
                             .to(User::Table, User::Id)
                             .on_delete(ForeignKeyAction::Cascade),
                     )
-                    .col(ColumnDef::new(Workspace::Title).string().string_len(50))
+                    .col(ColumnDef::new(Workspace::Title).string().string_len(50).not_null())
                     .col(
                         ColumnDef::new(Workspace::Description)
                             .string()
