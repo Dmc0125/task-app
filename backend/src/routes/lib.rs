@@ -35,13 +35,34 @@ pub struct ErrorResponse {
 }
 
 impl ErrorResponse {
-    pub fn new<T: Into<String>>(err_message: T, status: Status) -> ErrorResponse {
-        ErrorResponse {
-            body: ErrorResponseBody {
-                success: false,
-                error: err_message.into(),
+    pub fn new(err_message: Option<String>, status: Status) -> ErrorResponse {
+        match err_message {
+            Some(em) => ErrorResponse {
+                body: ErrorResponseBody {
+                    success: false,
+                    error: em.into(),
+                },
+                status,
             },
-            status,
+            None => {
+                let status_reason = status.reason();
+                if let Some(se) = status_reason {
+                    return ErrorResponse {
+                        body: ErrorResponseBody {
+                            success: false,
+                            error: se.into(),
+                        },
+                        status,
+                    };
+                }
+                ErrorResponse {
+                    body: ErrorResponseBody {
+                        success: false,
+                        error: "Internal server error".into(),
+                    },
+                    status,
+                }
+            }
         }
     }
 }

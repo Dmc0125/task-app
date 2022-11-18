@@ -1,8 +1,8 @@
+use backend::{entities::workspace, establish_db_connection};
 use rocket::{
     http::Status,
     serde::{json::Json, Deserialize, Serialize},
 };
-use backend::{entities::workspace, establish_db_connection};
 use sea_orm::{ActiveModelTrait, ActiveValue};
 
 use crate::routes::lib::{AuthenticatedUser, ErrorResponse, SuccessResponse};
@@ -14,7 +14,7 @@ pub async fn handler(
 ) -> Result<Json<SuccessResponse<InsertedWorkspace>>, ErrorResponse> {
     if data.title.len() > 50 && data.title.len() < 1 {
         return Err(ErrorResponse::new(
-            "Title length must be between 50 and 1 characters",
+            Some("Title length must be between 50 and 1 characters".into()),
             Status::BadRequest,
         ));
     }
@@ -23,7 +23,7 @@ pub async fn handler(
         Some(desc) => {
             if desc.len() > 255 || desc.len() < 1 {
                 return Err(ErrorResponse::new(
-                    "Description length must be between 255 and 1 characters",
+                    Some("Description length must be between 255 and 1 characters".into()),
                     Status::BadRequest,
                 ));
             }
@@ -33,10 +33,7 @@ pub async fn handler(
 
     let db_res = establish_db_connection().await;
     if let Err(_) = db_res {
-        return Err(ErrorResponse::new(
-            "Unknown Error",
-            Status::InternalServerError,
-        ));
+        return Err(ErrorResponse::new(None, Status::InternalServerError));
     }
     let db = db_res.unwrap();
 
@@ -50,7 +47,7 @@ pub async fn handler(
     .await;
 
     if let Err(_) = inserted_workspace_res {
-        return Err(ErrorResponse::new("", Status::InternalServerError));
+        return Err(ErrorResponse::new(None, Status::InternalServerError));
     }
 
     let inserted_workspace = inserted_workspace_res.unwrap();

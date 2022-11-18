@@ -41,13 +41,17 @@ pub async fn success_handler(
         .form(&token_form_body)
         .send()
         .await;
-    let token_body = handle_res_body::<TokenResponse>(token_res).await.unwrap();
+    let token_body = handle_res_body::<TokenResponse>(token_res).await;
+
+    if let Err(err) = token_body {
+        return Err(err);
+    }
 
     let profile_res = req_client
         .get(&provider_data.profile_url)
         .header(
             "authorization",
-            format!("Bearer {}", token_body.access_token),
+            format!("Bearer {}", token_body.unwrap().access_token),
         )
         .send()
         .await;
