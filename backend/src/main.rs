@@ -37,6 +37,8 @@ fn rocket() -> _ {
             "/api/v1",
             routes![
                 routes::workspace::insert::handler,
+                routes::workspace::update::handler,
+                routes::workspace::delete::handler,
                 routes::user::get::handler,
             ],
         )
