@@ -6,6 +6,7 @@ use sea_orm::entity::prelude::*;
 #[sea_orm(table_name = "task")]
 pub struct Model {
     pub task_group_id: i32,
+    pub user_id: i32,
     pub title: String,
     pub description: String,
     pub labels_ids: Option<Vec<i32>>,
@@ -23,11 +24,25 @@ pub enum Relation {
         on_delete = "Cascade"
     )]
     TaskGroup,
+    #[sea_orm(
+        belongs_to = "super::user::Entity",
+        from = "Column::UserId",
+        to = "super::user::Column::Id",
+        on_update = "NoAction",
+        on_delete = "Cascade"
+    )]
+    User,
 }
 
 impl Related<super::task_group::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::TaskGroup.def()
+    }
+}
+
+impl Related<super::user::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::User.def()
     }
 }
 

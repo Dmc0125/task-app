@@ -6,6 +6,7 @@ use sea_orm::entity::prelude::*;
 #[sea_orm(table_name = "task_group")]
 pub struct Model {
     pub workspace_id: i32,
+    pub user_id: i32,
     pub title: String,
     #[sea_orm(primary_key)]
     pub id: i32,
@@ -13,6 +14,14 @@ pub struct Model {
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
 pub enum Relation {
+    #[sea_orm(
+        belongs_to = "super::user::Entity",
+        from = "Column::UserId",
+        to = "super::user::Column::Id",
+        on_update = "NoAction",
+        on_delete = "Cascade"
+    )]
+    User,
     #[sea_orm(
         belongs_to = "super::workspace::Entity",
         from = "Column::WorkspaceId",
@@ -23,6 +32,12 @@ pub enum Relation {
     Workspace,
     #[sea_orm(has_many = "super::task::Entity")]
     Task,
+}
+
+impl Related<super::user::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::User.def()
+    }
 }
 
 impl Related<super::workspace::Entity> for Entity {

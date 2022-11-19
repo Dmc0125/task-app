@@ -111,7 +111,12 @@ impl MigrationTrait for Migration {
                             .to(User::Table, User::Id)
                             .on_delete(ForeignKeyAction::Cascade),
                     )
-                    .col(ColumnDef::new(Workspace::Title).string().string_len(50).not_null())
+                    .col(
+                        ColumnDef::new(Workspace::Title)
+                            .string()
+                            .string_len(50)
+                            .not_null(),
+                    )
                     .col(
                         ColumnDef::new(Workspace::Description)
                             .string()
@@ -135,17 +140,21 @@ impl MigrationTrait for Migration {
                                 .to(Workspace::Table, Workspace::Id)
                                 .on_delete(ForeignKeyAction::Cascade),
                         )
+                        .col(ColumnDef::new(Label::UserId).integer().not_null())
+                        .foreign_key(
+                            ForeignKey::create()
+                                .name("fk_label_id_user_id")
+                                .from(Label::Table, Label::UserId)
+                                .to(User::Table, User::Id)
+                                .on_delete(ForeignKeyAction::Cascade),
+                        )
                         .col(
                             ColumnDef::new(Label::Color)
                                 .string()
                                 .string_len(30)
                                 .not_null(),
                         )
-                        .col(
-                            ColumnDef::new(Label::Description)
-                                .string()
-                                .string_len(30),
-                        ),
+                        .col(ColumnDef::new(Label::Description).string().string_len(30)),
                 )
                 .to_owned(),
             )
@@ -163,6 +172,14 @@ impl MigrationTrait for Migration {
                                 .name("fk_task_group_id_workspace_id")
                                 .from(TaskGroup::Table, TaskGroup::WorkspaceId)
                                 .to(Workspace::Table, Workspace::Id)
+                                .on_delete(ForeignKeyAction::Cascade),
+                        )
+                        .col(ColumnDef::new(TaskGroup::UserId).integer().not_null())
+                        .foreign_key(
+                            ForeignKey::create()
+                                .name("fk_task_group_id_user_id")
+                                .from(TaskGroup::Table, TaskGroup::UserId)
+                                .to(User::Table, User::Id)
                                 .on_delete(ForeignKeyAction::Cascade),
                         )
                         .col(
@@ -190,6 +207,14 @@ impl MigrationTrait for Migration {
                                 .to(TaskGroup::Table, TaskGroup::Id)
                                 .on_delete(ForeignKeyAction::Cascade),
                         )
+                        .col(ColumnDef::new(Task::UserId).integer().not_null())
+                        .foreign_key(
+                            ForeignKey::create()
+                                .name("fk_task_id_user_id")
+                                .from(Task::Table, Task::UserId)
+                                .to(User::Table, User::Id)
+                                .on_delete(ForeignKeyAction::Cascade),
+                        )
                         .col(
                             ColumnDef::new(Task::Title)
                                 .string()
@@ -202,10 +227,7 @@ impl MigrationTrait for Migration {
                                 .string_len(255)
                                 .not_null(),
                         )
-                        .col(
-                            ColumnDef::new(Task::LabelsIds)
-                                .array(ColumnType::Integer(None))
-                        ),
+                        .col(ColumnDef::new(Task::LabelsIds).array(ColumnType::Integer(None))),
                 )
                 .to_owned(),
             )
@@ -314,6 +336,7 @@ enum Label {
     Table,
     Id,
     WorkspaceId,
+    UserId,
 
     Description,
     Color,
@@ -326,6 +349,7 @@ enum TaskGroup {
     Table,
     Id,
     WorkspaceId,
+    UserId,
 
     Title,
     //   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -337,6 +361,7 @@ enum Task {
     Table,
     Id,
     TaskGroupId,
+    UserId,
     LabelsIds,
 
     Title,

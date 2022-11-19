@@ -15,8 +15,14 @@ pub struct Model {
 pub enum Relation {
     #[sea_orm(has_many = "super::workspace::Entity")]
     Workspace,
+    #[sea_orm(has_many = "super::task_group::Entity")]
+    TaskGroup,
     #[sea_orm(has_many = "super::social_profile::Entity")]
     SocialProfile,
+    #[sea_orm(has_many = "super::label::Entity")]
+    Label,
+    #[sea_orm(has_many = "super::task::Entity")]
+    Task,
 }
 
 impl Related<super::workspace::Entity> for Entity {
@@ -25,9 +31,27 @@ impl Related<super::workspace::Entity> for Entity {
     }
 }
 
+impl Related<super::task_group::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::TaskGroup.def()
+    }
+}
+
 impl Related<super::social_profile::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::SocialProfile.def()
+    }
+}
+
+impl Related<super::label::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Label.def()
+    }
+}
+
+impl Related<super::task::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Task.def()
     }
 }
 

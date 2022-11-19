@@ -52,7 +52,7 @@ sea-orm-cli migrate down
 
 Generate entities
 ```sh
-sea-orm-cli generate entities -o src/backend
+sea-orm-cli generate entity -o src/entities
 ```
 
 #### Server
