@@ -1,5 +1,5 @@
 use rocket::{http::Status, serde::json::Json};
-use sea_orm::{ColumnTrait, DbErr, EntityTrait, QueryFilter, TransactionTrait};
+use sea_orm::{ColumnTrait, DbErr, EntityTrait, QueryFilter, TransactionError, TransactionTrait};
 
 use backend::{
     entities::{
@@ -36,7 +36,10 @@ pub async fn handler(
                     .await?;
 
                 if delete_task_group_res.rows_affected == 0 {
-                    return Err(DbErr::Custom(String::from("")));
+                    return Err(DbErr::Custom(format!(
+                        "Task group with id {} does not exist",
+                        task_group_id
+                    )));
                 }
 
                 Task::delete_many()
@@ -50,15 +53,13 @@ pub async fn handler(
         })
         .await;
 
-    if let Err(err) = tx_res {
-        if err.to_string().trim() == "Custom Error" {
-            return Err(ErrorResponse::new(
-                Some(format!("Task group with id {} does not exist", task_group_id).into()),
-                Status::NotFound,
-            ));
-        }
-        return Err(server_error_response);
+    match tx_res {
+        Ok(_) => Ok(Json(SuccessResponse::new(()))),
+        Err(tx_err) => match tx_err {
+            TransactionError::Transaction(DbErr::Custom(err)) => {
+                Err(ErrorResponse::new(Some(err), Status::NotFound))
+            }
+            _ => Err(server_error_response),
+        },
     }
-
-    Ok(Json(SuccessResponse::new(())))
 }
