@@ -134,6 +134,26 @@ impl<'r> FromRequest<'r> for AuthenticatedUser {
     }
 }
 
+pub fn validate_len(
+    input: &String,
+    min_len: usize,
+    max_len: usize,
+    property: &str,
+) -> Option<ErrorResponse> {
+    if input.len() < min_len || input.len() > max_len {
+        return Some(ErrorResponse::new(
+            Some(format!(
+                "{} length must be between {} and {} characters",
+                property, min_len, max_len,
+            )),
+            Status::BadRequest,
+        ));
+    }
+
+    None
+}
+
+
 pub fn create_signature(user_id: &String) -> String {
     let signature_key = get_env_var("SIGNATURE_KEY");
 

@@ -4,13 +4,12 @@ use rocket::{
 };
 use sea_orm::{sea_query::Expr, ColumnTrait, DbErr, EntityTrait, QueryFilter, UpdateResult, Value};
 
-use super::lib::validate_len;
 use backend::{
     entities::{prelude::Workspace, workspace},
     establish_db_connection,
 };
 
-use crate::routes::lib::{AuthenticatedUser, ErrorResponse, SuccessResponse};
+use crate::routes::lib::{validate_len, AuthenticatedUser, ErrorResponse, SuccessResponse};
 
 #[patch("/workspace/<workspace_id>", data = "<data>")]
 pub async fn handler(
