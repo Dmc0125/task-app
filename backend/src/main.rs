@@ -42,6 +42,7 @@ fn rocket() -> _ {
                 routes::user::get::handler,
                 routes::task_group::insert::handler,
                 routes::task_group::update::handler,
+                routes::task_group::delete::handler,
             ],
         )
 }

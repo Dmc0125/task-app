@@ -16,6 +16,7 @@ pub async fn handler(
     workspace_id: i32,
     user: AuthenticatedUser,
 ) -> Result<Json<SuccessResponse<DeletedWorkspace>>, ErrorResponse> {
+    // TODO: delete all labels, task-group and tasks related to this workspace
     let delete_workspace_res: Result<DeleteResult, DbErr> = async move {
         let db = establish_db_connection().await?;
         let delete_result = Workspace::delete_many()
