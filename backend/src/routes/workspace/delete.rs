@@ -1,5 +1,5 @@
 use rocket::{http::Status, serde::json::Json};
-use sea_orm::{ColumnTrait, DbErr, EntityTrait, QueryFilter, TransactionError, TransactionTrait};
+use sea_orm::{ColumnTrait, DbErr, EntityTrait, QueryFilter, TransactionError, TransactionTrait, Condition};
 
 use backend::{
     entities::{
@@ -52,14 +52,14 @@ pub async fn handler(
 
                 // Delete related tasks
                 if task_groups.len() > 0 {
-                    let mut delete_tasks_stmt =
+                    let delete_tasks_stmt =
                         Task::delete_many().filter(task::Column::UserId.eq(user.user_id));
+                    let mut delete_tasks_condition = Condition::any();
                     for task_group in task_groups.iter() {
                         let task_group_id = task_group.id;
-                        delete_tasks_stmt =
-                            delete_tasks_stmt.filter(task::Column::Id.eq(task_group_id));
+                        delete_tasks_condition = delete_tasks_condition.add(task::Column::Id.eq(task_group_id));
                     }
-                    delete_tasks_stmt.exec(tx).await?;
+                    delete_tasks_stmt.filter(delete_tasks_condition).exec(tx).await?;
                 }
 
                 // Delete task groups
