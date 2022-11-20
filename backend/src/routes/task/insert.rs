@@ -11,7 +11,7 @@ use backend::{
     },
     establish_db_connection,
 };
-use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter};
+use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter, Condition};
 
 use crate::routes::lib::{validate_len, AuthenticatedUser, ErrorResponse, SuccessResponse};
 
@@ -59,14 +59,16 @@ pub async fn handler(
             match &data.labels_ids {
                 Some(li) => {
                     if li.len() > 0 {
-                        let mut select_labels_stmt = Label::find()
+                        let select_labels_stmt = Label::find()
                             .filter(label::Column::UserId.eq(user.user_id))
                             .filter(label::Column::WorkspaceId.eq(task_group.workspace_id));
+                        let mut select_labels_condition = Condition::any();
                         for label_id in li.iter() {
-                            select_labels_stmt =
-                                select_labels_stmt.filter(label::Column::Id.eq(*label_id));
+                            select_labels_condition = select_labels_condition.add(
+                                label::Column::Id.eq(*label_id)
+                            );
                         }
-                        let select_labels_res = select_labels_stmt.all(&db).await;
+                        let select_labels_res = select_labels_stmt.filter(select_labels_condition).all(&db).await;
                         if let Err(_) = select_labels_res {
                             return Err(server_err_response);
                         }

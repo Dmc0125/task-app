@@ -278,6 +278,8 @@ dependencies = [
  "dotenvy",
  "hex",
  "hmac-sha256",
+ "lazy_static",
+ "regex",
  "reqwest",
  "rocket",
  "sea-orm",
