@@ -10,6 +10,8 @@ To use database in development, install [docker](https://www.docker.com/)
 docker-compose up
 ```
 
+### [Frontend setup](./frontend/README.md)
+
 ### Backend
 
 Set up env config
