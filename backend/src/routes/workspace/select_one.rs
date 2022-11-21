@@ -2,7 +2,7 @@ use rocket::{
     http::Status,
     serde::{json::Json, Serialize},
 };
-use sea_orm::{ColumnTrait, EntityTrait, ModelTrait, QueryFilter};
+use sea_orm::{ColumnTrait, EntityTrait, ModelTrait, QueryFilter, Condition};
 
 use backend::{
     entities::{
@@ -67,13 +67,14 @@ pub async fn handler(
     // Find tasks related tasks to related task groups
     let mut related_tasks: Vec<task::Model> = vec![];
     if found_related_task_groups.len() > 0 {
-        let mut find_related_tasks_stmt =
+        let find_related_tasks_stmt =
             Task::find().filter(task::Column::UserId.eq(user.user_id));
+        let mut find_related_tasks_cond = Condition::any();
         for task_group_model in found_related_task_groups.clone().iter() {
-            find_related_tasks_stmt =
-                find_related_tasks_stmt.filter(task::Column::TaskGroupId.eq(task_group_model.id))
+            find_related_tasks_cond =
+                find_related_tasks_cond.add(task::Column::TaskGroupId.eq(task_group_model.id));
         }
-        let found_related_tasks_models = find_related_tasks_stmt.all(&db).await;
+        let found_related_tasks_models = find_related_tasks_stmt.filter(find_related_tasks_cond).all(&db).await;
         match found_related_tasks_models {
             Err(_) => {
                 return Err(server_err_response);
