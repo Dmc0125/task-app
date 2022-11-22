@@ -5,7 +5,7 @@ use sea_orm::{
 };
 use std::collections::HashMap;
 
-use super::lib::{get_fail_redirect, get_provider_data, FailReason, RedirectWithCookie};
+use super::lib::{get_fail_redirect, AuthRoute, AuthSuccessRedirect, FailReason, ProviderData};
 use backend::{
     entities::{
         prelude::{SocialProfile, User},
@@ -21,12 +21,12 @@ use crate::routes::lib::create_signature;
 pub async fn success_handler(
     provider_type: &str,
     code: &str,
-) -> Result<RedirectWithCookie, Redirect> {
+) -> Result<AuthSuccessRedirect, Redirect> {
     if provider_type != "discord" && provider_type != "google" {
         return Err(get_fail_redirect(&FailReason::UnknownProvider));
     }
 
-    let provider_data = get_provider_data(provider_type);
+    let provider_data = ProviderData::new(provider_type);
     let req_client = Client::new();
 
     let mut token_form_body = HashMap::new();
@@ -106,10 +106,17 @@ pub async fn success_handler(
                     let existing_user_id = existing_user.unwrap().id.to_string();
                     let signature = create_signature(&existing_user_id);
 
-                    Ok(RedirectWithCookie::new(format!(
-                        "id={}.{}; HttpOnly=true; Max-Age=86400; Path=/; SameSite=Strict; Secure=true;",
-                        existing_user_id, signature
-                    )))
+                    Ok(
+                        AuthSuccessRedirect {
+                            cookies: vec![
+                                ("set-cookie".into(), format!(
+                                    "id={}.{}; HttpOnly=true; Max-Age=86400; Path=/; SameSite=Strict; Secure=true;",
+                                    existing_user_id, signature
+                                ))
+                            ],
+                            route: AuthRoute::SingIn,
+                        }
+                    )
                 }
                 Err(_) => Err(get_fail_redirect(&FailReason::Internal)),
             }
@@ -152,10 +159,15 @@ pub async fn success_handler(
             let user_id = user_id_res.unwrap();
             let signature = create_signature(&user_id);
 
-            Ok(RedirectWithCookie::new(format!(
-                "id={}.{}; HttpOnly=true; Max-Age=86400; Path=/; SameSite=Strict; Secure=true;",
-                user_id, signature,
-            )))
+            Ok(AuthSuccessRedirect {
+                cookies: vec![
+                    ("set-cookie".into(), format!(
+                        "id={}.{}; HttpOnly=true; Max-Age=86400; Path=/; SameSite=Strict; Secure=true;",
+                        user_id, signature,
+                    ))
+                ],
+                route: AuthRoute::SingIn,
+            })
         }
     }
 }

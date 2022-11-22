@@ -1,11 +1,19 @@
-use rocket::{http::Status, response::{self, Redirect}, Request, Response};
+use rocket::{
+    http::Status,
+    response::{self, Redirect},
+    Request, Response,
+};
 use urlencoding::encode;
 
 use backend::{entities::sea_orm_active_enums::SocialProviderType, get_env_var};
 
 pub fn get_fail_redirect(fail_reason: &FailReason) -> Redirect {
     let client_fail_url = get_env_var("CLIENT_SIGNIN_FAIL_URL");
-    Redirect::permanent(format!("{}?error_msg={}", client_fail_url, encode(fail_reason.value())))
+    Redirect::permanent(format!(
+        "{}?error_msg={}",
+        client_fail_url,
+        encode(fail_reason.value())
+    ))
 }
 
 pub enum FailReason {
@@ -22,48 +30,61 @@ impl FailReason {
     }
 }
 
-pub struct RedirectWithCookie {
-    cookie_value: Option<String>,
+pub struct AuthSuccessRedirect {
+    pub cookies: Vec<(String, String)>,
+    pub route: AuthRoute,
 }
 
-impl RedirectWithCookie {
-    pub fn new(cookie_value: String) -> RedirectWithCookie {
-        RedirectWithCookie {
-            cookie_value: Some(cookie_value),
-        }
-    }
-}
-
-impl<'r> response::Responder<'r, 'static> for RedirectWithCookie {
+impl<'r> response::Responder<'r, 'static> for AuthSuccessRedirect {
     fn respond_to(self, _: &'r Request<'_>) -> response::Result<'static> {
-        let client_success_url = get_env_var("CLIENT_SIGNIN_SUCCESS_URL");
+        let redirect_url = match self.route {
+            AuthRoute::SingIn => get_env_var("CLIENT_SIGNIN_SUCCESS_URL"),
+            AuthRoute::SignOut => get_env_var("CLIENT_URL"),
+        };
+
         let builder_binding = &mut Response::build();
         let response_builder = builder_binding
             .status(Status::PermanentRedirect)
-            .raw_header("Location", client_success_url);
+            .raw_header("Location", redirect_url);
 
-        if let Some(cookie_value) = self.cookie_value {
-            response_builder.raw_header("set-cookie", cookie_value);
+        for (cookie_name, cookie_value) in self.cookies {
+            response_builder.raw_header(cookie_name, cookie_value);
         }
 
         response_builder.ok()
     }
 }
 
-pub fn get_provider_data(provider: &str) -> ProviderData {
-    let base_url = get_env_var("BASE_URL");
-    let redirect_url = format!(
-        "{}/api/v1/auth/callback/{}",
-        base_url,
-        provider.to_lowercase()
-    );
+pub enum AuthRoute {
+    SingIn,
+    SignOut,
+}
 
-    let provider_uppercase = provider.to_uppercase();
+pub struct ProviderData {
+    pub provider: SocialProviderType,
+    pub auth_url: String,
+    pub profile_url: String,
+    pub token_url: String,
+    pub redirect_url: String,
+    pub client_id: String,
+    pub client_secret: String,
+}
 
-    let client_id = get_env_var(format!("{}_CLIENT_ID", provider_uppercase));
-    let client_secret = get_env_var(format!("{}_CLIENT_SECRET", provider_uppercase));
+impl ProviderData {
+    pub fn new(provider: &str) -> ProviderData {
+        let base_url = get_env_var("BASE_URL");
+        let redirect_url = format!(
+            "{}/api/v1/auth/callback/{}",
+            base_url,
+            provider.to_lowercase()
+        );
 
-    match provider {
+        let provider_uppercase = provider.to_uppercase();
+
+        let client_id = get_env_var(format!("{}_CLIENT_ID", provider_uppercase));
+        let client_secret = get_env_var(format!("{}_CLIENT_SECRET", provider_uppercase));
+
+        match provider {
         "discord" => ProviderData {
             provider: SocialProviderType::Discord,
             auth_url: format!(
@@ -90,14 +111,5 @@ pub fn get_provider_data(provider: &str) -> ProviderData {
         },
         _ => panic!("Unknown provider {}", provider)
     }
-}
-
-pub struct ProviderData {
-    pub provider: SocialProviderType,
-    pub auth_url: String,
-    pub profile_url: String,
-    pub token_url: String,
-    pub redirect_url: String,
-    pub client_id: String,
-    pub client_secret: String,
+    }
 }

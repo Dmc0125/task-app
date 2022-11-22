@@ -1,6 +1,6 @@
 use rocket::response::Redirect;
 
-use super::lib::{get_fail_redirect, get_provider_data, FailReason};
+use super::lib::{get_fail_redirect, FailReason, ProviderData};
 
 #[get("/<provider_type>")]
 pub fn handler(provider_type: &str) -> Redirect {
@@ -8,6 +8,6 @@ pub fn handler(provider_type: &str) -> Redirect {
         return get_fail_redirect(&FailReason::UnknownProvider);
     }
 
-    let provider_urls = get_provider_data(provider_type);
-    Redirect::to(provider_urls.auth_url)
+    let provider_urls = ProviderData::new(provider_type);
+    Redirect::temporary(provider_urls.auth_url)
 }
